@@ -3,7 +3,7 @@ package frc.com.swervedrivespecialties.swervelib.ctre;
 import com.ctre.phoenix.motorcontrol.*;
 import com.ctre.phoenix.motorcontrol.can.TalonFX;
 import com.ctre.phoenix.motorcontrol.can.TalonFXConfiguration;
-import com.swervedrivespecialties.swervelib.*;
+import frc.com.swervedrivespecialties.swervelib.*;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardContainer;
 
 import static com.swervedrivespecialties.swervelib.ctre.CtreUtils.checkCtreError;
