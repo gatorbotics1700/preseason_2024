@@ -36,12 +36,12 @@ public class DrivetrainSubsystem {
    private static final double pitchKI = 0.0;
    private static final double pitchKD = 0.0;
    private PIDController pitchController;
-   private static final double MINOUTPUT = 0.2;
-   private static final double SWERVE_GEAR_RATIO = 6.75;
-   private static final double SWERVE_WHEEL_DIAMETER = 4.0;
+   public static final double MINOUTPUT = 0.8;
+   public static final double SWERVE_GEAR_RATIO = 6.75;
+   public static final double SWERVE_WHEEL_DIAMETER = 6.0;
 //change SWERVE_TICKS_PER_INCH and SWERVE_TICKS_PER_METER
-   private static final double SWERVE_TICKS_PER_INCH = 0.0; //talonfx drive encoder
-   private static final double SWERVE_TICKS_PER_METER = 0.0;
+   private static final double SWERVE_TICKS_PER_INCH = TICKS_PER_REV*SWERVE_GEAR_RATIO/SWERVE_WHEEL_DIAMETER/Math.PI; //talonfx drive encoder
+   private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH*Constants.METERS_PER_INCH;
         
 
   /**`+
@@ -62,8 +62,8 @@ public class DrivetrainSubsystem {
    * This is a measure of how fast the robot should be able to drive in a straight line.
    */
   private static final double MAX_VELOCITY_METERS_PER_SECOND = 6380.0 / 60.0 *
-          SdsModuleConfigurations.MODULETYPE.getDriveReduction() *
-          SdsModuleConfigurations.MODULETYPE.getWheelDiameter() * Math.PI;
+          SdsModuleConfigurations.MK4I_L2.getDriveReduction() *
+          SdsModuleConfigurations.MK4I_L2.getWheelDiameter() * Math.PI;
           // = 5.38281261
   /**
    * The maximum angular velocity of the robot in radians per second.
@@ -106,11 +106,11 @@ public class DrivetrainSubsystem {
                         .withSize(2, 4)
                         .withPosition(0, 0),
                 // This can be any level from L1-L4 depending on the gear configuration (the levels allow different amounts of speed and torque)
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
-                // This is the ID of the drive motor
-                FRONT_LEFT_MODULE_DRIVE_MOTOR,
+                Mk4SwerveModuleHelper.GearRatio.L1,
                 // This is the ID of the steer motor
                 FRONT_LEFT_MODULE_STEER_MOTOR,
+                // This is the ID of the drive motor
+                FRONT_LEFT_MODULE_DRIVE_MOTOR,
                 // This is the ID of the steer encoder
                 FRONT_LEFT_MODULE_STEER_ENCODER,
                 // This is how much the steer encoder is offset from true zero (In our case, zero is facing straight forward)
@@ -123,7 +123,7 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Front Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(2, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
+                Mk4SwerveModuleHelper.GearRatio.L3,
                 FRONT_RIGHT_MODULE_DRIVE_MOTOR,
                 FRONT_RIGHT_MODULE_STEER_MOTOR,
                 FRONT_RIGHT_MODULE_STEER_ENCODER,
@@ -134,7 +134,7 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Back Left Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(4, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
+                Mk4SwerveModuleHelper.GearRatio.L2,
                 BACK_LEFT_MODULE_DRIVE_MOTOR,
                 BACK_LEFT_MODULE_STEER_MOTOR,
                 BACK_LEFT_MODULE_STEER_ENCODER,
@@ -145,14 +145,12 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Back Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(6, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
+                Mk4SwerveModuleHelper.GearRatio.L2,
                 BACK_RIGHT_MODULE_DRIVE_MOTOR,
                 BACK_RIGHT_MODULE_STEER_MOTOR,
                 BACK_RIGHT_MODULE_STEER_ENCODER,
                 BACK_RIGHT_MODULE_STEER_OFFSET
         );
-
-        init();
   }
 
   public void init(){
@@ -161,14 +159,14 @@ public class DrivetrainSubsystem {
         m_kinematics = new SwerveDriveKinematics(
           // Setting up location of modules relative to the center of the robot
           // Front left
-          new Translation2d(DRIVETRAIN_WHEELBASE_METERS / 2.0, DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
+          new Pose2d(-DRIVETRAIN_WHEELBASE_METERS, -DRIVETRAIN_TRACKWIDTH_METERS),
           //translation2d refers to the robot's x and y position in the larger field coordinate system
           // Front right
-          new Translation2d(DRIVETRAIN_WHEELBASE_METERS / 2.0, -DRIVETRAIN_TRACKWIDTH_METERS / 2.0), 
+          new Pose2d(-DRIVETRAIN_WHEELBASE_METERS, DRIVETRAIN_TRACKWIDTH_METERS), 
           // Back left
-          new Translation2d(-DRIVETRAIN_WHEELBASE_METERS / 2.0, DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
+          new Pose2d(DRIVETRAIN_WHEELBASE_METERS, -DRIVETRAIN_TRACKWIDTH_METERS),
           // Back right
-          new Translation2d(-DRIVETRAIN_WHEELBASE_METERS / 2.0, -DRIVETRAIN_TRACKWIDTH_METERS / 2.0)
+          new Pose2d(DRIVETRAIN_WHEELBASE_METERS, DRIVETRAIN_TRACKWIDTH_METERS)
         );
 
         m_pose = new Pose2d();
@@ -179,12 +177,12 @@ public class DrivetrainSubsystem {
         m_kinematics, 
         getGyroscopeRotation(), 
         new SwerveModulePosition[] {
-                m_frontLeftModule.getSwerveModulePosition(), 
                 m_frontRightModule.getSwerveModulePosition(), 
-                m_backLeftModule.getSwerveModulePosition(), 
-                m_backRightModule.getSwerveModulePosition()
+                m_frontLeftModule.getSwerveModulePosition(), 
+                m_backRightModule.getSwerveModulePosition(), 
+                m_backLeftModule.getSwerveModulePosition()
         }, 
-        new Pose2d(0, 0, new Rotation2d(Math.toRadians(180)))); //assumes 180 degrees rotation is facing driver station
+        new Pose2d(0, 0, new Rotation2d(Math.toRadians(0)))); //assumes 180 degrees rotation is facing driver station
   }
   
   //from pigeon used for updating our odometry
@@ -229,10 +227,10 @@ public class DrivetrainSubsystem {
         //System.out.println("pose before update: " + m_pose.getX()/TICKS_PER_INCH + " and y: " + m_pose.getY()/TICKS_PER_INCH);
         //TODO: check getSteerAngle() is correct and that we shouldn't be getting from cancoder
         SwerveModulePosition[] array =  {
-                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())), //from steer motor
-                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())), 
-                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
-                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
+                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_INCH, new Rotation2d(m_frontLeftModule.getSteerAngle())), //from steer motor
+                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_INCH, new Rotation2d(m_frontRightModule.getSteerAngle())), 
+                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_INCH, new Rotation2d(m_backLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_INCH, new Rotation2d(m_backRightModule.getSteerAngle()))
         };
         m_pose = m_odometry.update(getGyroscopeRotation(),array); 
 
