@@ -28,19 +28,20 @@ import java.util.function.DoubleSupplier;
 
 import static frc.robot.Constants.*;
 
-import frc.robot.Constants;
 import frc.robot.OI;
 
 public class DrivetrainSubsystem {
-   private static final double pitchKP = 0.027; //0.025; 0.035;
+//change kp, kp, kd via testing; 0.0 is a placeholder
+   private static final double pitchKP = 0.0;
    private static final double pitchKI = 0.0;
-   private static final double pitchKD = 0.005; //0.001;
+   private static final double pitchKD = 0.0;
    private PIDController pitchController;
    private static final double MINOUTPUT = 0.2;
    private static final double SWERVE_GEAR_RATIO = 6.75;
    private static final double SWERVE_WHEEL_DIAMETER = 4.0;
-   private static final double SWERVE_TICKS_PER_INCH = Constants.TICKS_PER_REV*SWERVE_GEAR_RATIO/SWERVE_WHEEL_DIAMETER/Math.PI; //talonfx drive encoder
-   private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH/Constants.METERS_PER_INCH;
+//change SWERVE_TICKS_PER_INCH and SWERVE_TICKS_PER_METER
+   private static final double SWERVE_TICKS_PER_INCH = 0.0; //talonfx drive encoder
+   private static final double SWERVE_TICKS_PER_METER = 0.0;
         
 
   /**`+
@@ -61,8 +62,8 @@ public class DrivetrainSubsystem {
    * This is a measure of how fast the robot should be able to drive in a straight line.
    */
   private static final double MAX_VELOCITY_METERS_PER_SECOND = 6380.0 / 60.0 *
-          SdsModuleConfigurations.MK4_L2.getDriveReduction() *
-          SdsModuleConfigurations.MK4_L2.getWheelDiameter() * Math.PI;
+          SdsModuleConfigurations.MODULETYPE.getDriveReduction() *
+          SdsModuleConfigurations.MODULETYPE.getWheelDiameter() * Math.PI;
           // = 5.38281261
   /**
    * The maximum angular velocity of the robot in radians per second.
@@ -94,6 +95,7 @@ public class DrivetrainSubsystem {
   private ChassisSpeeds m_chassisSpeeds;
 
   public DrivetrainSubsystem() {
+    //initialize pigeon
         m_pigeon = new PigeonIMU(DRIVETRAIN_PIGEON_ID);
         tab = Shuffleboard.getTab("Drivetrain");
 
@@ -104,7 +106,7 @@ public class DrivetrainSubsystem {
                         .withSize(2, 4)
                         .withPosition(0, 0),
                 // This can be any level from L1-L4 depending on the gear configuration (the levels allow different amounts of speed and torque)
-                Mk4SwerveModuleHelper.GearRatio.L2,
+                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
                 // This is the ID of the drive motor
                 FRONT_LEFT_MODULE_DRIVE_MOTOR,
                 // This is the ID of the steer motor
@@ -121,7 +123,7 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Front Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(2, 0),
-                Mk4SwerveModuleHelper.GearRatio.L2,
+                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
                 FRONT_RIGHT_MODULE_DRIVE_MOTOR,
                 FRONT_RIGHT_MODULE_STEER_MOTOR,
                 FRONT_RIGHT_MODULE_STEER_ENCODER,
@@ -132,7 +134,7 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Back Left Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(4, 0),
-                Mk4SwerveModuleHelper.GearRatio.L2,
+                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
                 BACK_LEFT_MODULE_DRIVE_MOTOR,
                 BACK_LEFT_MODULE_STEER_MOTOR,
                 BACK_LEFT_MODULE_STEER_ENCODER,
@@ -143,7 +145,7 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Back Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(6, 0),
-                Mk4SwerveModuleHelper.GearRatio.L2,
+                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
                 BACK_RIGHT_MODULE_DRIVE_MOTOR,
                 BACK_RIGHT_MODULE_STEER_MOTOR,
                 BACK_RIGHT_MODULE_STEER_ENCODER,
@@ -189,33 +191,19 @@ public class DrivetrainSubsystem {
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
   private Rotation2d getGyroscopeRotation() {
-        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
+        
   }
   //from odometry used for field-relative rotation
   public Rotation2d getPoseRotation() {
-        return m_pose.getRotation(); 
+        
   }
 
   public void resetOdometry(Pose2d start){
-        SwerveModulePosition[] positionArray =  new SwerveModulePosition[] {
-                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())),
-                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())), 
-                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
-                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))};
-        m_pose = start; //TODO: taken from elsewhere, confirm why we do this
-        //System.out.println("position array: " + positionArray.toString());
-        //System.out.println("m_pose: " + m_pose.getX() + ", " + m_pose.getY() + ", " + m_pose.getRotation().getDegrees());
-        m_odometry.resetPosition(getGyroscopeRotation(), positionArray, m_pose);
-        //System.out.println("#resetodometry! new pose: " + m_pose.getX() + " y: " + m_pose.getY());
-        m_pose = m_odometry.update(getGyroscopeRotation(), positionArray);
-        //System.out.println("m_pose after update in odometry: " + m_pose.getX() + ", " + m_pose.getY() + ", " + m_pose.getRotation().getDegrees());
-        //System.out.println("inputs for the reset: " + getGyroscopeRotation() + " " + m_frontLeftModule.getSwerveModulePosition().distanceMeters + " " + m_frontRightModule.getSwerveModulePosition().distanceMeters + " " + m_backLeftModule.getSwerveModulePosition().distanceMeters + " " + m_backRightModule.getSwerveModulePosition().distanceMeters);
+        
 }
-       // System.out.println("#resetodometry! new pose: " + m_pose.getX()/SWERVE_TICKS_PER_INCH + " y: " + m_pose.getY()/SWERVE_TICKS_PER_INCH);
-       // System.out.println("inputs for the reset: " + getGyroscopeRotation() + m_frontLeftModule.getSwerveModulePosition().distanceMeters + m_frontRightModule.getSwerveModulePosition().distanceMeters + m_backLeftModule.getSwerveModulePosition().distanceMeters + m_backRightModule.getSwerveModulePosition().distanceMeters);
 
   public void setSpeed(ChassisSpeeds chassisSpeeds) {
-        m_chassisSpeeds = chassisSpeeds;
+     
   }
   
   public void driveTeleop(){
@@ -286,46 +274,32 @@ public class DrivetrainSubsystem {
 
     //AUTO AND FAILSAFE
     public void stopDrive() {
-        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0, 0.0, 0.0, getPoseRotation()));
-        drive();
+        
    }
 
    //TODO: look through this function
    public void pitchBalance(double pitchSetpoint){
-        System.out.println("pitch: " + m_pigeon.getPitch());
-        double currPitch = m_pigeon.getPitch();
-        pitchController.setSetpoint(pitchSetpoint); 
-        double output = pitchController.calculate(currPitch, pitchSetpoint); 
-        
-        if (Math.abs(currPitch - pitchSetpoint) < 2.5){
-            System.out.println("BALANCED, SETTING PITCH SPEED TO ZERO");
-            setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0, 0, 0,getPoseRotation()));
-        } else{
-            output = -Math.signum(output) * Math.max(Math.abs(output), MINOUTPUT);
-            setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(output, 0, 0, getPoseRotation()));
-        }
-        System.out.println("output: " + output);
-        drive();
+       
     }
 
     public double getMPoseX(){
-        return m_pose.getX();
+   
     }
 
     public double getMPoseY(){
-        return m_pose.getY();
+   
     }
 
     public double getMPoseDegrees(){
-        return m_pose.getRotation().getDegrees();
+       
     }
 
     public Pose2d getMPose(){ //TODO: do we need this?
-        return m_pose;
+       
     }
 
     public double getPitch(){
-        return m_pigeon.getPitch();
+      
     }
    
 }
