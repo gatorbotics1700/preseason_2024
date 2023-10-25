@@ -1,7 +1,10 @@
 package frc.com.swervedrivespecialties.swervelib;
 
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
+import edu.wpi.first.math.kinematics.SwerveModulePosition; 
 
 public class SwerveModuleFactory<DriveConfiguration, SteerConfiguration> {
     private final ModuleConfiguration moduleConfiguration;
@@ -55,6 +58,11 @@ public class SwerveModuleFactory<DriveConfiguration, SteerConfiguration> {
         @Override
         public double getSteerAngle() {
             return steerController.getStateAngle();
+        }
+
+        @Override
+        public SwerveModulePosition getSwerveModulePosition(){
+            return new SwerveModulePosition(driveController.getPosition(), new Rotation2d(steerController.getStateAngle()));
         }
 
         @Override

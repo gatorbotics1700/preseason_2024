@@ -40,8 +40,8 @@ public class DrivetrainSubsystem {
    private static final double SWERVE_GEAR_RATIO = 6.75;
    private static final double SWERVE_WHEEL_DIAMETER = 4.0;
 //change SWERVE_TICKS_PER_INCH and SWERVE_TICKS_PER_METER
-   private static final double SWERVE_TICKS_PER_INCH = 0.0; //talonfx drive encoder
-   private static final double SWERVE_TICKS_PER_METER = 0.0;
+   private static final double SWERVE_TICKS_PER_INCH = Constants.TICKS_PER_REV*SWERVE_GEAR_RATIO*(1/SWERVE_WHEEL_DIAMETER*Math.PI); //talonfx drive encoder
+   private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH/Constants.METERS_PER_INCH;
         
 
   /**`+
@@ -62,8 +62,8 @@ public class DrivetrainSubsystem {
    * This is a measure of how fast the robot should be able to drive in a straight line.
    */
   private static final double MAX_VELOCITY_METERS_PER_SECOND = 6380.0 / 60.0 *
-          SdsModuleConfigurations.MODULETYPE.getDriveReduction() *
-          SdsModuleConfigurations.MODULETYPE.getWheelDiameter() * Math.PI;
+          SdsModuleConfigurations.MK4_L2.getDriveReduction() *
+          SdsModuleConfigurations.MK4_L2.getWheelDiameter() * Math.PI;
           // = 5.38281261
   /**
    * The maximum angular velocity of the robot in radians per second.
@@ -72,7 +72,7 @@ public class DrivetrainSubsystem {
    */
   // Here we calculate the theoretical maximum angular velocity. You can also replace this with a measured amount.
   private static final double MAX_ANGULAR_VELOCITY_RADIANS_PER_SECOND = MAX_VELOCITY_METERS_PER_SECOND /
-          Math.hypot(DRIVETRAIN_TRACKWIDTH_METERS / 2.0, DRIVETRAIN_WHEELBASE_METERS / 2.0);
+          Math.hypot(Constants.DRIVETRAIN_TRACKWIDTH_METERS / 2.0, Constants.DRIVETRAIN_WHEELBASE_METERS / 2.0);
 
   private SwerveDriveKinematics m_kinematics;
 
@@ -96,7 +96,8 @@ public class DrivetrainSubsystem {
 
   public DrivetrainSubsystem() {
     //initialize pigeon
-        m_pigeon = new PigeonIMU(DRIVETRAIN_PIGEON_ID);
+        m_pigeon = new PigeonIMU(Constants.DRIVETRAIN_PIGEON_ID); //constructor of the class, makes objects.
+        // a pigeon is like a gyroscope pitch, roll, yaw
         tab = Shuffleboard.getTab("Drivetrain");
 
         // We will use mk4 modules with Falcon 500s with the L2 configuration. 
@@ -106,15 +107,15 @@ public class DrivetrainSubsystem {
                         .withSize(2, 4)
                         .withPosition(0, 0),
                 // This can be any level from L1-L4 depending on the gear configuration (the levels allow different amounts of speed and torque)
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
+                Mk4SwerveModuleHelper.GearRatio.L2,
                 // This is the ID of the drive motor
-                FRONT_LEFT_MODULE_DRIVE_MOTOR,
+                Constants.FRONT_LEFT_MODULE_DRIVE_MOTOR,
                 // This is the ID of the steer motor
-                FRONT_LEFT_MODULE_STEER_MOTOR,
+                Constants.FRONT_LEFT_MODULE_STEER_MOTOR,
                 // This is the ID of the steer encoder
-                FRONT_LEFT_MODULE_STEER_ENCODER,
+                Constants.FRONT_LEFT_MODULE_STEER_ENCODER,
                 // This is how much the steer encoder is offset from true zero (In our case, zero is facing straight forward)
-                FRONT_LEFT_MODULE_STEER_OFFSET
+                Constants.FRONT_LEFT_MODULE_STEER_OFFSET
         );
         
         // We will do the same for the other modules
@@ -123,52 +124,52 @@ public class DrivetrainSubsystem {
                 tab.getLayout("Front Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(2, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
-                FRONT_RIGHT_MODULE_DRIVE_MOTOR,
-                FRONT_RIGHT_MODULE_STEER_MOTOR,
-                FRONT_RIGHT_MODULE_STEER_ENCODER,
-                FRONT_RIGHT_MODULE_STEER_OFFSET
+                Mk4SwerveModuleHelper.GearRatio.L2,
+                Constants.FRONT_RIGHT_MODULE_DRIVE_MOTOR,
+                Constants.FRONT_RIGHT_MODULE_STEER_MOTOR,
+                Constants.FRONT_RIGHT_MODULE_STEER_ENCODER,
+                Constants.FRONT_RIGHT_MODULE_STEER_OFFSET
         );
         
         m_backLeftModule = Mk4SwerveModuleHelper.createFalcon500(
                 tab.getLayout("Back Left Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(4, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
-                BACK_LEFT_MODULE_DRIVE_MOTOR,
-                BACK_LEFT_MODULE_STEER_MOTOR,
-                BACK_LEFT_MODULE_STEER_ENCODER,
-                BACK_LEFT_MODULE_STEER_OFFSET
+                Mk4SwerveModuleHelper.GearRatio.L2,
+                Constants.BACK_LEFT_MODULE_DRIVE_MOTOR,
+                Constants.BACK_LEFT_MODULE_STEER_MOTOR,
+                Constants.BACK_LEFT_MODULE_STEER_ENCODER,
+                Constants.BACK_LEFT_MODULE_STEER_OFFSET
         );
         
         m_backRightModule = Mk4SwerveModuleHelper.createFalcon500(
                 tab.getLayout("Back Right Module", BuiltInLayouts.kList)
                         .withSize(2, 4)
                         .withPosition(6, 0),
-                Mk4SwerveModuleHelper.GearRatio.INSERTLEVEL,
-                BACK_RIGHT_MODULE_DRIVE_MOTOR,
-                BACK_RIGHT_MODULE_STEER_MOTOR,
-                BACK_RIGHT_MODULE_STEER_ENCODER,
-                BACK_RIGHT_MODULE_STEER_OFFSET
+                Mk4SwerveModuleHelper.GearRatio.L2,
+                Constants.BACK_RIGHT_MODULE_DRIVE_MOTOR,
+                Constants.BACK_RIGHT_MODULE_STEER_MOTOR,
+                Constants.BACK_RIGHT_MODULE_STEER_ENCODER,
+                Constants.BACK_RIGHT_MODULE_STEER_OFFSET
         );
 
         init();
   }
 
-  public void init(){
+  public void init(){ // not hardware goes into init
         System.out.println("Initializing drivetrain subsystem vars");
-        pitchController = new PIDController(pitchKP, pitchKI, pitchKD);
+        pitchController = new PIDController(pitchKP, pitchKI, pitchKD); 
         m_kinematics = new SwerveDriveKinematics(
           // Setting up location of modules relative to the center of the robot
           // Front left
-          new Translation2d(DRIVETRAIN_WHEELBASE_METERS / 2.0, DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
+          new Translation2d(Constants.DRIVETRAIN_WHEELBASE_METERS / 2.0, Constants.DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
           //translation2d refers to the robot's x and y position in the larger field coordinate system
           // Front right
-          new Translation2d(DRIVETRAIN_WHEELBASE_METERS / 2.0, -DRIVETRAIN_TRACKWIDTH_METERS / 2.0), 
+          new Translation2d(Constants.DRIVETRAIN_WHEELBASE_METERS / 2.0, -Constants.DRIVETRAIN_TRACKWIDTH_METERS / 2.0), 
           // Back left
-          new Translation2d(-DRIVETRAIN_WHEELBASE_METERS / 2.0, DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
+          new Translation2d(-Constants.DRIVETRAIN_WHEELBASE_METERS / 2.0, Constants.DRIVETRAIN_TRACKWIDTH_METERS / 2.0),
           // Back right
-          new Translation2d(-DRIVETRAIN_WHEELBASE_METERS / 2.0, -DRIVETRAIN_TRACKWIDTH_METERS / 2.0)
+          new Translation2d(-Constants.DRIVETRAIN_WHEELBASE_METERS / 2.0, -Constants.DRIVETRAIN_TRACKWIDTH_METERS / 2.0)
         );
 
         m_pose = new Pose2d();
