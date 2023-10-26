@@ -3,6 +3,9 @@ package frc.com.swervedrivespecialties.swervelib;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
 
+import edu.wpi.first.math.kinematics.SwerveModulePosition; 
+import edu.wpi.first.math.geometry.Rotation2d;
+
 public class SwerveModuleFactory<DriveConfiguration, SteerConfiguration> {
     private final ModuleConfiguration moduleConfiguration;
     private final DriveControllerFactory<?, DriveConfiguration> driveControllerFactory;
@@ -89,6 +92,11 @@ public class SwerveModuleFactory<DriveConfiguration, SteerConfiguration> {
 
             driveController.setReferenceVoltage(driveVoltage);
             steerController.setReferenceAngle(steerAngle);
+        }
+        
+        @Override 
+        public SwerveModulePosition getSwerveModulePosition() {
+            return new SwerveModulePosition(driveController.getPosition(), new Rotation2d(steerController.getStateAngle()));
         }
     }
 }
