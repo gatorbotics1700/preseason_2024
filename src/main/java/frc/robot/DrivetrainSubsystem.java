@@ -32,9 +32,9 @@ import frc.robot.OI;
 
 public class DrivetrainSubsystem {
 //change kp, kp, kd via testing; 0.0 is a placeholder
-   private static final double pitchKP = 0.0;
+   private static final double pitchKP = 0.027;
    private static final double pitchKI = 0.0;
-   private static final double pitchKD = 0.0;
+   private static final double pitchKD = 0.005;
    private PIDController pitchController;
    private static final double MINOUTPUT = 0.2;
    private static final double SWERVE_GEAR_RATIO = 6.75;
@@ -92,7 +92,7 @@ public class DrivetrainSubsystem {
   private ShuffleboardTab tab;
 
   //ChassisSpeeds takes in y velocity, x velocity, speed of rotation
-  private ChassisSpeeds m_chassisSpeeds;
+  private ChassisSpeeds m_chassisSpeeds; 
 
   public DrivetrainSubsystem() {
     //initialize pigeon
@@ -179,9 +179,9 @@ public class DrivetrainSubsystem {
         m_kinematics, 
         getGyroscopeRotation(), 
         new SwerveModulePosition[] {
-                m_frontLeftModule.getSwerveModulePosition(), 
-                m_frontRightModule.getSwerveModulePosition(), 
-                m_backLeftModule.getSwerveModulePosition(), 
+                m_frontLeftModule.getSwerveModulePosition(),
+                m_frontRightModule.getSwerveModulePosition(),
+                m_backLeftModule.getSwerveModulePosition(),
                 m_backRightModule.getSwerveModulePosition()
         }, 
         new Pose2d(0, 0, new Rotation2d(Math.toRadians(180)))); //assumes 180 degrees rotation is facing driver station
@@ -191,18 +191,29 @@ public class DrivetrainSubsystem {
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
   private Rotation2d getGyroscopeRotation() {
+        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
         
   }
   //from odometry used for field-relative rotation
   public Rotation2d getPoseRotation() {
+        return m_pose.getRotation(); //dif: getPose factors in the intial pose and the rotation
         
   }
 
   public void resetOdometry(Pose2d start){
-        
+        SwerveModulePosition[] positionArray = new SwerveModulePosition[] {
+                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())), 
+                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())), 
+                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())), 
+                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))      
+        };
+        //goal is to keep track of where we are. if the robot is moving, then its odomtery is changing and we need to reset m_pose
+        m_odometry.resetPosition(getGyroscopeRotation(), positionArray, start);
+        m_pose = m_odometry.update(getGyroscopeRotation(), positionArray);
 }
 
   public void setSpeed(ChassisSpeeds chassisSpeeds) {
+        m_chassisSpeeds = chassisSpeeds;
      
   }
   
@@ -228,13 +239,13 @@ public class DrivetrainSubsystem {
   public void drive() { //runs periodically
         //System.out.println("pose before update: " + m_pose.getX()/TICKS_PER_INCH + " and y: " + m_pose.getY()/TICKS_PER_INCH);
         //TODO: check getSteerAngle() is correct and that we shouldn't be getting from cancoder
-        SwerveModulePosition[] array =  {
+        SwerveModulePosition[] positionArray =  {
                 new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())), //from steer motor
                 new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())), 
                 new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
                 new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
         };
-        m_pose = m_odometry.update(getGyroscopeRotation(),array); 
+        m_pose = m_odometry.update(getGyroscopeRotation(), positionArray); 
 
         //array of states filled with the speed and angle for each module (made from linear and angular motion for the whole robot) 
         SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(m_chassisSpeeds);
@@ -274,32 +285,40 @@ public class DrivetrainSubsystem {
 
     //AUTO AND FAILSAFE
     public void stopDrive() {
-        
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0, 0.0, 0.0, getPoseRotation()));
    }
 
    //TODO: look through this function
    public void pitchBalance(double pitchSetpoint){
-       
+       double currPitch = m_pigeon.getPitch();
+       pitchController.setSetpoint(pitchSetpoint);
+       double output = pitchController.calculate(currPitch, pitchSetpoint);
+       if(Math.abs(currPitch - pitchSetpoint) < 2.5){
+                System.out.println("BALANCED< SETTING PITCH SPEED TO ZERO");
+                setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0, 0.0, 0.0, getPoseRotation())); //set speed to zero
+       } else {
+                output = -Math.signum(output) * Math.max(Math.abs(output), MINOUTPUT);
+                setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(output, 0.0, 0.0, getPoseRotation())); //set speed to zero
+       }
+
+       drive();
+
     }
 
     public double getMPoseX(){
-   
+        return m_pose.getX();
     }
 
     public double getMPoseY(){
-   
+        return m_pose.getY();
     }
 
     public double getMPoseDegrees(){
-       
-    }
-
-    public Pose2d getMPose(){ //TODO: do we need this?
-       
+       return m_pose.getRotation().getDegrees();
     }
 
     public double getPitch(){
-      
+      return m_pigeon.getPitch();
     }
    
 }
