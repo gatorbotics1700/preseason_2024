@@ -191,19 +191,26 @@ private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH / Con
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
   private Rotation2d getGyroscopeRotation() {
-        
+        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
   }
   //from odometry used for field-relative rotation
   public Rotation2d getPoseRotation() {
-        
+        return m_pose.getRotation();
   }
 
   public void resetOdometry(Pose2d start){
-        
+        SwerveModulePosition[] positionArray = new SwerveModulePosition[] {
+                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())),
+                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
+        };
+        m_odometry.resetPosition(getGyroscopeRotation(),positionArray,start);
+        m_odometry.update(getGyroscopeRotation(),positionArray);
 }
 
   public void setSpeed(ChassisSpeeds chassisSpeeds) {
-     
+     m_chassisSpeeds = chassisSpeeds;
   }
   
   public void driveTeleop(){
@@ -211,6 +218,7 @@ private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH / Con
         DoubleSupplier m_translationYSupplier;
         DoubleSupplier m_rotationSupplier;
         //TODO: check negative signs
+        //robot and controller x and y are switched
         m_translationXSupplier = () -> -modifyAxis(OI.m_controller.getLeftY()) * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         m_translationYSupplier = () -> -modifyAxis(OI.m_controller.getLeftX()) * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         m_rotationSupplier = () -> -modifyAxis(OI.m_controller.getRightX()) * DrivetrainSubsystem.MAX_ANGULAR_VELOCITY_RADIANS_PER_SECOND;
@@ -274,32 +282,39 @@ private static final double SWERVE_TICKS_PER_METER = SWERVE_TICKS_PER_INCH / Con
 
     //AUTO AND FAILSAFE
     public void stopDrive() {
-        
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0,0, 0,0, 0,0, getPoseRotation()));
+        drive();
    }
 
    //TODO: look through this function
    public void pitchBalance(double pitchSetpoint){
-       
+       double currPitch = m_pigeon.getPitch();
+       pitchController.setSetpoint(pitchSetpoint);
+       double output = pitchController.calculate(currPitch, pitchSetpoint);
+       if(Math.abs(currPitch-pitchSetpoint)<2.5){
+        System.out.println("BALANCED,SETTING PITCH SPEED TO ZERO");
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0,0, 0,0, 0,0, getPoseRotation()));
+       } else {
+        output = -Math.signum(output) * Math.max(Math.abs(output), MINOUTPUT);
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(output, 0,0, 0,0, getPoseRotation()));
+       }
+       drive();
     }
 
     public double getMPoseX(){
-   
+        return m_pose.getX();
     }
 
     public double getMPoseY(){
-   
+        return m_pose.getY();
     }
 
     public double getMPoseDegrees(){
-       
-    }
-
-    public Pose2d getMPose(){ //TODO: do we need this?
-       
+       return m_pose.getRotation().getDegrees();
     }
 
     public double getPitch(){
-      
+      return m_pigeon.getPitch();
     }
    
 }
