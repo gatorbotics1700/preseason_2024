@@ -192,19 +192,26 @@ public class DrivetrainSubsystem {
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
   private Rotation2d getGyroscopeRotation() {
-        
+        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
   }
   //from odometry used for field-relative rotation
   public Rotation2d getPoseRotation() {
-        
+        return m_pose.getRotation();
   }
 
   public void resetOdometry(Pose2d start){
-        
+        SwerveModulePosition[] positionArray = new SwerveModulePosition[] {
+                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())),
+                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
+        };
+        m_odometry.resetPosition(getGyroscopeRotation(), positionArray, start);
+        m_odometry.update(getGyroscopeRotation(), positionArray);
 }
 
   public void setSpeed(ChassisSpeeds chassisSpeeds) {
-     
+        m_chassisSpeeds = chassisSpeeds;
   }
   
   public void driveTeleop(){
@@ -235,7 +242,7 @@ public class DrivetrainSubsystem {
                 new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
                 new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
         };
-        m_pose = m_odometry.update(getGyroscopeRotation(),array); 
+        m_pose = m_odometry.update(getGyroscopeRotation(), array); 
 
         //array of states filled with the speed and angle for each module (made from linear and angular motion for the whole robot) 
         SwerveModuleState[] states = m_kinematics.toSwerveModuleStates(m_chassisSpeeds);
@@ -275,32 +282,39 @@ public class DrivetrainSubsystem {
 
     //AUTO AND FAILSAFE
     public void stopDrive() {
-        
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0, 0.0, 0.0, getPoseRotation()));
+        drive();
    }
 
    //TODO: look through this function
    public void pitchBalance(double pitchSetpoint){
-       
+        double currPitch = m_pigeon.getPitch();
+        pitchController.setSetpoint(pitchSetpoint);
+        double output = pitchController.calculate(currPitch, pitchSetpoint);
+        if(Math.abs(currPitch - pitchSetpoint) < 2.5){
+                System.out.println("BLANACED< SETTING PITCH SPEED TO ZERO");
+                setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0, 0.0, 0.0, getPoseRotation()));
+        } else {
+                output = -Math.signum(output) * Math.max(Math.abs(output), MINOUTPUT);
+                setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(output, 0.0, 0.0, getPoseRotation()));
+        }
+        drive();
     }
 
     public double getMPoseX(){
-   
+        return m_pose.getX(); 
     }
 
     public double getMPoseY(){
-   
+        return m_pose.getY();
     }
 
     public double getMPoseDegrees(){
-       
-    }
-
-    public Pose2d getMPose(){ //TODO: do we need this?
-       
+       return m_pose.getRotation().getDegrees();
     }
 
     public double getPitch(){
-      
+        return m_pigeon.getPitch();
     }
    
 }
