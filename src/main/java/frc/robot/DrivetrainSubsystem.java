@@ -193,20 +193,40 @@ public class DrivetrainSubsystem {
   //from pigeon used for updating our odometry
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
+  // getYaw gets the rotation of gyrospcowp
+  // gyroscope rotation gets raw reading 
+  //pigeon is gyroscope, gyroscope explains where robot is
   private Rotation2d getGyroscopeRotation() {
+        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
         
   }
   //from odometry used for field-relative rotation
+  //gettin roation based on Pose (xy axis of field)
+  //translated version odf the gyroscppe onw
   public Rotation2d getPoseRotation() {
+        return m_pose.getRotation();
+
         
   }
-
+// update pose 2d object 
+// reset position is a method, behaviro in a class
+//want getgyroscoperotation because its the raw reading
   public void resetOdometry(Pose2d start){
-        
-}
+        SwerveModulePosition[] positionArray = new SwerveModulePosition[]{
+                new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_frontRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontRightModule.getSteerAngle())),
+                new SwerveModulePosition(m_backLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backLeftModule.getSteerAngle())),
+                new SwerveModulePosition(m_backRightModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_backRightModule.getSteerAngle()))
+        };
+          m_odometry.resetPosition(getGyroscopeRotation(), positionArray, start);
+          m_odometry.update(getGyroscopeRotation(), positionArray);
 
+}
+//chassis are the 4 bars that make up the sides of the drivetrain, chassis speeds are speed of the chassis
   public void setSpeed(ChassisSpeeds chassisSpeeds) {
-     
+        m_chassisSpeeds = chassisSpeeds;
+
+        
   }
   
   public void driveTeleop(){
@@ -214,6 +234,7 @@ public class DrivetrainSubsystem {
         DoubleSupplier m_translationYSupplier;
         DoubleSupplier m_rotationSupplier;
         //TODO: check negative signs
+// robot x is xbox controller y, robot y is xbox controller x (on Xbox y moves up and down, x moves left to right)
         m_translationXSupplier = () -> -modifyAxis(OI.m_controller.getLeftY()) * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         m_translationYSupplier = () -> -modifyAxis(OI.m_controller.getLeftX()) * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         m_rotationSupplier = () -> -modifyAxis(OI.m_controller.getRightX()) * DrivetrainSubsystem.MAX_ANGULAR_VELOCITY_RADIANS_PER_SECOND;
@@ -230,6 +251,7 @@ public class DrivetrainSubsystem {
 
   public void drive() { //runs periodically
         //System.out.println("pose before update: " + m_pose.getX()/TICKS_PER_INCH + " and y: " + m_pose.getY()/TICKS_PER_INCH);
+        //setting speed that we want each of the modules to be going rather than one general speed for all of them
         //TODO: check getSteerAngle() is correct and that we shouldn't be getting from cancoder
         SwerveModulePosition[] array =  {
                 new SwerveModulePosition(m_frontLeftModule.getPosition()/SWERVE_TICKS_PER_METER, new Rotation2d(m_frontLeftModule.getSteerAngle())), //from steer motor
@@ -266,43 +288,58 @@ public class DrivetrainSubsystem {
       }
     
    private static double modifyAxis(double value) {
-        // Deadband
+        // Deadband = if controller joystick only pushed alil it doesnt move : if under deadband amount dont move the robto
+        // small distance from where to be then if within deadband then robot can just stop
         value = deadband(value, 0.05);
 
-        // Square the axis
+        // if outside the range Square the axis
         value = Math.copySign(value * value, value);
 
         return value;
     }
 
-    //AUTO AND FAILSAFE
+    //AUTO AND FAILSAFE, stop drving
     public void stopDrive() {
+        setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0,0.0,0.0, getPoseRotation()));
+        drive();
         
    }
-
    //TODO: look through this function
+   //pid stands fro proportional , integral, derivative
+   //pid is a magthematic=al means that the robot can figure out how much power to the motor translatees to amoutn of distance traveled EX: if robot runs into object PID can supply more power to push through
+   //balancing on the charge styation 
+   //pitch is up and down ish
    public void pitchBalance(double pitchSetpoint){
-       
+        double currPitch = m_pigeon.getPitch();
+        pitchController.setSetpoint(pitchSetpoint);
+        double output = pitchController.calculate(currPitch, pitchSetpoint);
+        if (Math.abs(currPitch - pitchSetpoint) < 2.5) {
+                System.out.println("BALANCED, SETTING PITCH SPEED TO ZERO");
+                setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(0.0,0.0,0.0, getPoseRotation()));
+
+        } else {
+        output = -Math.signum(output) * Math.max(Math.abs(output), MINOUTPUT); 
+         setSpeed(ChassisSpeeds.fromFieldRelativeSpeeds(output, 0.0, 0.0, getPoseRotation()));
+        }
+        drive();
     }
 
     public double getMPoseX(){
-   
+        return m_pose.getX();
+        
     }
 
     public double getMPoseY(){
-   
+        return m_pose.getY();
     }
 
     public double getMPoseDegrees(){
-       
+       return m_pose.getRotation().getDegrees();
     }
 
-    public Pose2d getMPose(){ //TODO: do we need this?
-       
-    }
 
     public double getPitch(){
-      
+      return m_pigeon.getPitch();
     }
    
 }
