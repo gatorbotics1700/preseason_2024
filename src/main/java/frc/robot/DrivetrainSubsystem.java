@@ -192,15 +192,21 @@ public class DrivetrainSubsystem {
   //in an unknown, arbitrary frame
   //"do not use unless you know what you are doing" - patricia
   private Rotation2d getGyroscopeRotation() {
-        
+        return new Rotation2d(Math.toRadians(m_pigeon.getYaw()));
   }
   //from odometry used for field-relative rotation
   public Rotation2d getPoseRotation() {
-        
+        return m_pose.getRotation();
   }
 
   public void resetOdometry(Pose2d start){
-        
+        SwerveModulePosition[] positionArray = new SwerveModulePosition[] {
+                new SwerveModulePosition(m_frontLeftModule.getPosition()),
+                new SwerveModulePosition(),
+                new SwerveModulePosition(),
+                new SwerveModulePosition(),
+        }
+        m_odometry.resetPositon(getGyroscopeRotation(), modulePositions:null, start);
 }
 
   public void setSpeed(ChassisSpeeds chassisSpeeds) {

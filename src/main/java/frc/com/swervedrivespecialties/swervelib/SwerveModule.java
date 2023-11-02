@@ -9,4 +9,11 @@ public interface SwerveModule {
 
     SwerveModulePosition getSwerveModulePosition();
     void set(double driveVoltage, double steerAngle);
+    
+    @Override
+    public double getPosition(){
+        
+        return DriveController.getPosition()
+
+    }
 }
